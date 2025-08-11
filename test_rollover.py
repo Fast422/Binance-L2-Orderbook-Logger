@@ -3,29 +3,39 @@ import gzip
 import pandas as pd
 import shutil
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import pytest
 from main import OrderBookDataCollector
 
 def make_fake_data(ts, update_id):
-    # Simulate a Binance depth update message
+    # Simulate a Binance depth update message with all real keys
     return {
+        'e': 'depthUpdate',
         'E': ts,
-        'u': update_id,
-        'b': [[str(10000 + i), str(1 + i)] for i in range(10)],
-        'a': [[str(11000 + i), str(2 + i)] for i in range(10)]
+        's': 'TESTCOIN',
+        'U': update_id,  # first update ID in event
+        'u': update_id + 5,  # final update ID in event (arbitrary)
+        'b': [[f'{119000 + i:.8f}', f'{1 + i:.8f}'] for i in range(10)],
+        'a': [[f'{120000 + i:.8f}', f'{2 + i:.8f}'] for i in range(10)]
     }
 
 def test_rollover_creates_new_files(tmp_path):
     symbol = "TESTCOIN"
-    # Patch data dir to tmp_path
     orig_dir = os.getcwd()
     os.chdir(tmp_path)
     try:
-        collector = OrderBookDataCollector(url="", symbol=symbol, test_mode=True)
-        # Simulate 2+ minutes of data, 1 update per second
+        collector = OrderBookDataCollector(url="", symbol=symbol)
+        # Patch get_current_date to simulate date change by minute
+        base_date = datetime(2025, 8, 11, tzinfo=timezone.utc)
+        # We'll use a mutable [minute] so the lambda can see the current value
+        minute_holder = {'minute': 0}
+        def fake_get_current_date():
+            return (base_date + timedelta(days=minute_holder['minute'])).strftime('%Y-%m-%d')
+        collector.get_current_date = fake_get_current_date
+        # Simulate 2 minutes of data, 1 update per second
         start = int(time.time() * 1000)
         for minute in range(2):
+            minute_holder['minute'] = minute
             for sec in range(60):
                 ts = start + (minute * 60 + sec) * 1000
                 data = make_fake_data(ts, update_id=minute*60+sec)
