@@ -113,7 +113,7 @@ class OrderBookDataCollector:
             while self.running:
                 message = await websocket.recv()
                 data = json.loads(message)
-                print(data)  # Print raw data for debugging
+                #print(data)  # Print raw data for debugging
                 self.order_book = data
                 self.last_update = time.strftime('%Y-%m-%d %H:%M:%S')
                 self.buffer_snapshot(data)
