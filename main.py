@@ -142,10 +142,10 @@ class OrderBookDataCollector:
                     # Uncomment below for more detailed output
                     # print("\n--- Order Book Snapshot ---")
                     print(f"Last update: {self.last_update}")
-                    print("Top 10 Bids:")
-                    print(bids_df.head(10).to_string(index=False))
-                    print("Top 10 Asks:")
-                    print(asks_df.head(10).to_string(index=False))
+                    # print("Top 10 Bids:")
+                    # print(bids_df.head(10).to_string(index=False))
+                    # print("Top 10 Asks:")
+                    # print(asks_df.head(10).to_string(index=False))
             await asyncio.sleep(1)
 
 
