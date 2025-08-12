@@ -113,17 +113,8 @@ class OrderBookDataCollector:
             while self.running:
                 message = await websocket.recv()
                 data = json.loads(message)
-                #print(data)  # Print raw data for debugging
-                self.order_book = data
-                self.last_update = time.strftime('%Y-%m-%d %H:%M:%S')
-                self.buffer_snapshot(data)
-                # Rollover at midnight UTC
-                new_date = self.get_current_date()
-                if new_date != self.current_date:
-                    self.rollover_file()
-                # Flush every 60 seconds
-                if time.time() - self.last_flush > 60:
-                    self.flush_buffer()
+                # Uncomment the line below for debugging raw data
+                #print(data)
                 self.order_book = data
                 self.last_update = time.strftime('%Y-%m-%d %H:%M:%S')
                 self.buffer_snapshot(data)
@@ -151,10 +142,10 @@ class OrderBookDataCollector:
                     # Uncomment below for more detailed output
                     # print("\n--- Order Book Snapshot ---")
                     print(f"Last update: {self.last_update}")
-                    # print("Top 10 Bids:")
-                    # print(bids_df.head(10).to_string(index=False))
-                    # print("Top 10 Asks:")
-                    # print(asks_df.head(10).to_string(index=False))
+                    print("Top 10 Bids:")
+                    print(bids_df.head(10).to_string(index=False))
+                    print("Top 10 Asks:")
+                    print(asks_df.head(10).to_string(index=False))
             await asyncio.sleep(1)
 
 
@@ -171,6 +162,6 @@ class OrderBookDataCollector:
 # Entry point for running the collector as a script
 if __name__ == "__main__":
     symbol = "BTCUSDT"
-    url = f"wss://stream.binance.com:9443/ws/{symbol.lower()}@depth"
+    url = f"wss://fstream.binance.com/ws/{symbol.lower()}@depth20@100ms"
     collector = OrderBookDataCollector(url, symbol)
     asyncio.run(collector.run())
