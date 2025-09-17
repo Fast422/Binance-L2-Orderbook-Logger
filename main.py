@@ -108,23 +108,39 @@ class OrderBookDataCollector:
         Buffers each update, handles file rollover at midnight, and flushes buffer every 60 seconds.
         """
         print("Connecting to Binance WebSocket...")
-        async with websockets.connect(self.url) as websocket:
-            print("Connected!")
-            while self.running:
-                message = await websocket.recv()
-                data = json.loads(message)
-                # Uncomment the line below for debugging raw data
-                #print(data)
-                self.order_book = data
-                self.last_update = time.strftime('%Y-%m-%d %H:%M:%S')
-                self.buffer_snapshot(data)
-                # Rollover at midnight UTC
-                new_date = self.get_current_date()
-                if new_date != self.current_date:
-                    self.rollover_file()
-                # Flush every 60 seconds
-                if time.time() - self.last_flush > 60:
-                    self.flush_buffer()
+        print("Connected!")
+        while self.running:
+            try:
+                async with websockets.connect(self.url) as websocket:
+                    while self.running:
+                        try:
+                            message = await websocket.recv()
+                            data = json.loads(message)
+                            self.order_book = data
+                            self.last_update = time.strftime('%Y-%m-%d %H:%M:%S')
+                            self.buffer_snapshot(data)
+                            # Rollover at midnight UTC
+                            new_date = self.get_current_date()
+                            if new_date != self.current_date:
+                                self.rollover_file()
+                            # Flush every 60 seconds
+                            if time.time() - self.last_flush > 60:
+                                self.flush_buffer()
+                        except asyncio.CancelledError:
+                            print("receive_data cancelled.")
+                            raise
+                        except Exception as e:
+                            print(f"Error in receive_data inner loop: {e}")
+                            break
+            except asyncio.CancelledError:
+                print("receive_data cancelled (outer).")
+                raise
+            except (websockets.ConnectionClosed, websockets.InvalidStatusCode, OSError) as e:
+                print(f"WebSocket connection lost: {e}. Reconnecting in 5 seconds...")
+                await asyncio.sleep(5)
+            except Exception as e:
+                print(f"Unexpected error in receive_data: {e}")
+                await asyncio.sleep(5)
 
 
     async def print_data(self):

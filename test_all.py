@@ -8,6 +8,9 @@ from datetime import datetime, timezone, timedelta
 # Third-party imports
 import pandas as pd
 import pytest
+import asyncio
+from unittest.mock import AsyncMock, patch
+import websockets
 
 # Import the main class to be tested
 from main import OrderBookDataCollector
@@ -125,3 +128,50 @@ def test_multiple_flushes(tmp_path):
         df = pd.read_csv(fin)
         # Should have 40 rows (20 from each flush)
         assert len(df) == 40
+
+@pytest.mark.asyncio
+async def test_reconnection_logic(monkeypatch):
+    symbol = "TESTCOIN"
+    url = "wss://test"
+    collector = OrderBookDataCollector(url, symbol)
+
+    connect_attempts = {"count": 0}
+
+    class MockWebSocket:
+        def __init__(self):
+            self.recv_count = 0
+
+        async def recv(self):
+            self.recv_count += 1
+            if self.recv_count == 1:
+                return '{"b": [], "a": [], "E": 123, "u": 1}'
+            else:
+                raise asyncio.CancelledError()  # Causes receive_data to exit
+
+        async def __aenter__(self):
+            connect_attempts["count"] += 1
+            if connect_attempts["count"] == 1:
+                raise OSError("connection closed")
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+    monkeypatch.setattr(websockets, "connect", lambda *args, **kwargs: MockWebSocket())
+
+    collector.running = True
+    task = asyncio.create_task(collector.receive_data())
+    try:
+        await asyncio.wait_for(asyncio.sleep(5.5), timeout=6)  # Add timeout
+    except asyncio.TimeoutError:
+        task.cancel()
+        raise AssertionError("Test timed out, likely due to stalled receive_data loop.")
+    collector.running = False
+    await asyncio.sleep(0.1)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert connect_attempts["count"] >= 2, "Reconnection did not occur as expected"
