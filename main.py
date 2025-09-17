@@ -145,7 +145,7 @@ class OrderBookDataCollector:
 
     async def print_data(self):
         """
-        Periodically prints the latest order book snapshot (every second).
+        Periodically prints the latest order book snapshot (every 10 seconds).
         Only prints the last update time for brevity.
         """
         while self.running:
@@ -162,7 +162,7 @@ class OrderBookDataCollector:
                     # print(bids_df.head(10).to_string(index=False))
                     # print("Top 10 Asks:")
                     # print(asks_df.head(10).to_string(index=False))
-            await asyncio.sleep(1)
+            await asyncio.sleep(10)
 
 
     async def run(self):
